@@ -1,0 +1,618 @@
+{
+  "name": "Dev Test – AI Data Engineer Role",
+  "nodes": [
+    {
+      "parameters": {
+        "filePath": "D:/xampp/htdocs/dev_test_project/data/ads_spend.csv"
+      },
+      "name": "Read CSV File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -272
+      ],
+      "id": "46a56b39-6fa6-44ed-afa5-5f09b3f8de76"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "ads_base",
+          "mode": "list",
+          "cachedResultName": "ads_base"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "spend": 0,
+            "clicks": 0,
+            "impressions": 0,
+            "conversions": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "platform",
+              "displayName": "platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "account",
+              "displayName": "account",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "campaign",
+              "displayName": "campaign",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "device",
+              "displayName": "device",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "spend",
+              "displayName": "spend",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "clicks",
+              "displayName": "clicks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "impressions",
+              "displayName": "impressions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "conversions",
+              "displayName": "conversions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "load_date",
+              "displayName": "load_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source_file_name",
+              "displayName": "source_file_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        496,
+        -272
+      ],
+      "id": "2aff054b-c838-4dda-a956-acc9f6f75b4e",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "0PpzHdt9Udf8uQCj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -272
+      ],
+      "id": "76f5c43d-6f85-4c1e-8c43-b84ab45209b5",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Recibir todos los items de PostgreSQL o nodo previo\nconst kpiData = items.map(i => i.json);\n\n// Crear tabla formateada\nconst tableData = [\n  ['📊 KPI', 'Últimos 30 Días', 'Previos 30 Días', 'Cambio %', 'Tendencia'],\n  ['─'.repeat(40), '─'.repeat(15), '─'.repeat(15), '─'.repeat(10), '─'.repeat(12)]\n];\n\n// Procesar cada métrica\nkpiData.forEach(row => {\n  let trend = '';\n  \n  // Usar pct_change o delta_pct según cómo venga\n  const change = parseFloat(row.pct_change ?? row.delta_pct ?? 0);\n\n  if (change > 0) trend = '🟢';\n  else if (change < 0) trend = '🔴';\n  else trend = '⚪';\n\n  // Formatear valores según el tipo de métrica\n  let last30 = row.last_30_days ?? row.last30 ?? 0;\n  let prev30 = row.prev_30_days ?? row.prev30 ?? 0;\n\n  if (row.metric === 'Spend' || row.metric === 'CAC') {\n    last30 = `$${parseFloat(last30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n    prev30 = `$${parseFloat(prev30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n  } else if (row.metric === 'ROAS') {\n    last30 = `${parseFloat(last30).toFixed(2)}x`;\n    prev30 = `${parseFloat(prev30).toFixed(2)}x`;\n  }\n\n  const changeText = change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;\n\n  tableData.push([\n    row.metric ?? row.kpi ?? 'N/A',\n    last30,\n    prev30,\n    changeText,\n    trend\n  ]);\n});\n\n// Crear salida formateada\nconst outputTable = tableData.map(row => \n  `${row[0].padEnd(15)} ${row[1].toString().padStart(15)} ${row[2].toString().padStart(15)} ${row[3].toString().padStart(10)} ${row[4].toString().padStart(5)}`\n).join('\\n');\n\n// Final\nreturn [\n  {\n    json: {\n      summary: \"Análisis Comparativo de 30 Días\",\n      table: outputTable,\n      raw_data: kpiData,\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        -112
+      ],
+      "id": "43172753-0264-4c46-9bd2-e209a4d6cede",
+      "name": "output for metrics"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH date_ranges AS (\n    SELECT \n        MAX(date) as max_date,\n        MAX(date) - INTERVAL '30 days' as last_30_start,\n        MAX(date) - INTERVAL '60 days' as prev_30_start\n    FROM ads_base\n),\nmetrics AS (\n    SELECT\n        -- Últimos 30 días\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.spend ELSE 0 END)::numeric as spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric as conv_30,\n        \n        -- Previos 30 días\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.spend ELSE 0 END)::numeric as spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.conversions ELSE 0 END)::numeric as conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start\n)\nSELECT \n    'Spend' as metric,\n    ROUND(spend_30, 2) as last_30_days,\n    ROUND(spend_60, 2) as prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) as pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        48,
+        -112
+      ],
+      "id": "70c0bf03-97c3-4f51-a64a-260edd2e2161",
+      "name": " KPI Modeling ",
+      "credentials": {
+        "postgres": {
+          "id": "0PpzHdt9Udf8uQCj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  item.json.load_date = new Date().toISOString();\n  item.json.source_file_name = \"ads_spend.csv\";\n  return item;\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -272
+      ],
+      "id": "cf113052-fad4-4501-9982-1b7b1bf597b9",
+      "name": "basic metadata"
+    },
+    {
+      "parameters": {
+        "path": "metrics",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        80
+      ],
+      "id": "5ca93905-65ad-4333-9138-d5854308a8e7",
+      "name": "Webhook",
+      "webhookId": "dc193177-4360-4765-b703-aff64c8274f7"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        560,
+        80
+      ],
+      "id": "cb23b4ce-3bb3-45bf-8a7f-5e650bdfbf36",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH date_ranges AS (\n    SELECT \n        CAST('{{ $json.query.end }}' AS date) AS max_date,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '30 days' AS last_30_start,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '60 days' AS prev_30_start,\n        CAST('{{ $json.query.start }}' AS date) AS min_date\n),\nmetrics AS (\n    SELECT\n        -- Últimos 30 días\n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.spend ELSE 0 END)::numeric AS spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.conversions ELSE 0 END)::numeric AS conv_30,\n        \n        -- Previos 30 días\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.spend ELSE 0 END)::numeric AS spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric AS conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start AND ab.date <= dr.max_date\n)\nSELECT \n    'Spend' AS metric,\n    ROUND(spend_30, 2) AS last_30_days,\n    ROUND(spend_60, 2) AS prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) AS pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        176,
+        80
+      ],
+      "id": "36b609d8-e75b-42d6-9b2d-e3445a527ffb",
+      "name": " KPI Modeling 1",
+      "credentials": {
+        "postgres": {
+          "id": "0PpzHdt9Udf8uQCj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      summary: \"Análisis Comparativo de 30 Días\",\n      table: $input.all().map(item => ({\n        metric: item.json.metric,\n        last_30_days: item.json.last_30_days,\n        prev_30_days: item.json.prev_30_days,\n        pct_change: item.json.pct_change\n      })),\n      timestamp: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        80
+      ],
+      "id": "bdbc4faf-aade-425c-affb-53dbed666224",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "content": "## part 1 --->\n\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -256
+      ],
+      "id": "8a1ed149-4d3a-4c5b-80bf-0e2030c3f63d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## part 2 --->\n\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -112
+      ],
+      "id": "fae77f0d-32cc-4e6e-b88a-5bcbed61d1d7",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## part 3 --->\n\n",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        80
+      ],
+      "id": "b7f66812-5a5b-43f0-8fc7-2459094a1b33",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## part 4 --->\n\ni only make some test ",
+        "height": 128,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        304
+      ],
+      "id": "09458c25-b359-42e5-a1f0-bf0bac1bdf08",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agent-demo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        288
+      ],
+      "id": "09604bb4-a588-44a2-8bd7-34f7934c5b0b",
+      "name": "Webhook1",
+      "webhookId": "7a9b84d0-e56c-455c-af1f-54bc93952483"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data assistant. \n\nUser question: {{ $json.body.question }}\n\nTask:\n1. Identify requested metrics and date ranges.\n2. Map the question to SQL query using table ads_base:\n   - CAC = spend / conversions\n   - ROAS = (conversions * 100) / spend\n   - Compare last 30 days vs previous 30 days.\n3. Return SQL query that calculates these metrics. ",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        288
+      ],
+      "id": "7541eac2-dea6-49af-8226-bc31035afc53",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-20250514",
+          "cachedResultName": "Claude 4 Sonnet"
+        },
+        "options": {
+          "maxTokensToSample": 4096
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        480
+      ],
+      "id": "543f6a19-e491-4858-a21e-c092f4553b9a",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "jZFlHxe3lMvT2dVa",
+          "name": "Anthropic account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH date_periods AS (\n  SELECT \n    CASE \n      WHEN date >= CURRENT_DATE - INTERVAL '30 days' THEN 'Last 30 Days'\n      WHEN date >= CURRENT_DATE - INTERVAL '60 days' AND date < CURRENT_DATE - INTERVAL '30 days' THEN 'Prior 30 Days'\n    END AS period,\n    spend,\n    conversions\n  FROM ads_base\n  WHERE date >= CURRENT_DATE - INTERVAL '60 days'\n),\nmetrics_by_period AS (\n  SELECT\n    period,\n    SUM(spend) AS total_spend,\n    SUM(conversions) AS total_conversions,\n    SUM(spend)/NULLIF(SUM(conversions),0) AS CAC,\n    (SUM(conversions)*100)/NULLIF(SUM(spend),0) AS ROAS\n  FROM date_periods\n  WHERE period IS NOT NULL\n  GROUP BY period\n)\nSELECT \n  period,\n  ROUND(CAC::numeric,2) AS CAC,\n  ROUND(ROAS::numeric,2) AS ROAS,\n  total_spend,\n  total_conversions\nFROM metrics_by_period\nORDER BY period DESC;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        544,
+        288
+      ],
+      "id": "7e88ce85-2369-4fcd-8fce-9e3bd9e1e489",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "0PpzHdt9Udf8uQCj",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        944,
+        288
+      ],
+      "id": "e54aa597-de93-4f83-8807-bf8cc6f1d78f",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      summary: \"Análisis Comparativo de 30 Días\",\n      table: $items(\"Execute a SQL query\").map(item => ({\n        period: item.json.period,      // columna period de tu SQL\n        total_spend: item.json.total_spend,  // si quieres total_spend también\n        total_conversions: item.json.total_conversions, // opcional\n        CAC: item.json.CAC,\n        ROAS: item.json.ROAS\n      })),\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        288
+      ],
+      "id": "4f6fa6c7-3445-43b5-830c-56b160e622ca",
+      "name": "Code2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Read CSV File": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "basic metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    " KPI Modeling ": {
+      "main": [
+        [
+          {
+            "node": "output for metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "basic metadata": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": " KPI Modeling 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "output for metrics": {
+      "main": [
+        []
+      ]
+    },
+    " KPI Modeling 1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c6f7b388-1c6a-47d0-bd96-0a45918915ed",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "27678ddd03a59d98c5163b866e33b37f0f8bfe70af0496365f3195fa7315e605"
+  },
+  "id": "WfLe7JRXRdnfZcpg",
+  "tags": []
+}

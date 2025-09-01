@@ -7,7 +7,7 @@ WITH date_ranges AS (
 ),
 metrics AS (
     SELECT
-        -- Últimos 30 días
+        --Last 30 days
         SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.spend ELSE 0 END)::numeric as spend_30,
         SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric as conv_30,
         

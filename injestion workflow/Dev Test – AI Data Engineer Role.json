@@ -181,7 +181,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Recibir todos los items de PostgreSQL o nodo previo\nconst kpiData = items.map(i => i.json);\n\n// Crear tabla formateada\nconst tableData = [\n  ['📊 KPI', 'Últimos 30 Días', 'Previos 30 Días', 'Cambio %', 'Tendencia'],\n  ['─'.repeat(40), '─'.repeat(15), '─'.repeat(15), '─'.repeat(10), '─'.repeat(12)]\n];\n\n// Procesar cada métrica\nkpiData.forEach(row => {\n  let trend = '';\n  \n  // Usar pct_change o delta_pct según cómo venga\n  const change = parseFloat(row.pct_change ?? row.delta_pct ?? 0);\n\n  if (change > 0) trend = '🟢';\n  else if (change < 0) trend = '🔴';\n  else trend = '⚪';\n\n  // Formatear valores según el tipo de métrica\n  let last30 = row.last_30_days ?? row.last30 ?? 0;\n  let prev30 = row.prev_30_days ?? row.prev30 ?? 0;\n\n  if (row.metric === 'Spend' || row.metric === 'CAC') {\n    last30 = `$${parseFloat(last30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n    prev30 = `$${parseFloat(prev30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n  } else if (row.metric === 'ROAS') {\n    last30 = `${parseFloat(last30).toFixed(2)}x`;\n    prev30 = `${parseFloat(prev30).toFixed(2)}x`;\n  }\n\n  const changeText = change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;\n\n  tableData.push([\n    row.metric ?? row.kpi ?? 'N/A',\n    last30,\n    prev30,\n    changeText,\n    trend\n  ]);\n});\n\n// Crear salida formateada\nconst outputTable = tableData.map(row => \n  `${row[0].padEnd(15)} ${row[1].toString().padStart(15)} ${row[2].toString().padStart(15)} ${row[3].toString().padStart(10)} ${row[4].toString().padStart(5)}`\n).join('\\n');\n\n// Final\nreturn [\n  {\n    json: {\n      summary: \"Análisis Comparativo de 30 Días\",\n      table: outputTable,\n      raw_data: kpiData,\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
+        "jsCode": "const kpiData = items.map(i => i.json);\n\nconst tableData = [\n  ['📊 KPI', 'Last 30 Days', 'Previos 30 Days', 'Change %', 'Tred'],\n  ['─'.repeat(40), '─'.repeat(15), '─'.repeat(15), '─'.repeat(10), '─'.repeat(12)]\n];\n\nkpiData.forEach(row => {\n  let trend = '';\n  \n  const change = parseFloat(row.pct_change ?? row.delta_pct ?? 0);\n\n  if (change > 0) trend = '🟢';\n  else if (change < 0) trend = '🔴';\n  else trend = '⚪';\n\n \n  let last30 = row.last_30_days ?? row.last30 ?? 0;\n  let prev30 = row.prev_30_days ?? row.prev30 ?? 0;\n\n  if (row.metric === 'Spend' || row.metric === 'CAC') {\n    last30 = `$${parseFloat(last30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n    prev30 = `$${parseFloat(prev30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;\n  } else if (row.metric === 'ROAS') {\n    last30 = `${parseFloat(last30).toFixed(2)}x`;\n    prev30 = `${parseFloat(prev30).toFixed(2)}x`;\n  }\n\n  const changeText = change > 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;\n\n  tableData.push([\n    row.metric ?? row.kpi ?? 'N/A',\n    last30,\n    prev30,\n    changeText,\n    trend\n  ]);\n});\n\n\nconst outputTable = tableData.map(row => \n  `${row[0].padEnd(15)} ${row[1].toString().padStart(15)} ${row[2].toString().padStart(15)} ${row[3].toString().padStart(10)} ${row[4].toString().padStart(5)}`\n).join('\\n');\n\n\nreturn [\n  {\n    json: {\n      summary: \"30-Day Comparative Analysis\",\n      table: outputTable,\n      raw_data: kpiData,\n      timestamp: new Date().toISOString()\n    }\n  }\n];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -195,7 +195,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH date_ranges AS (\n    SELECT \n        MAX(date) as max_date,\n        MAX(date) - INTERVAL '30 days' as last_30_start,\n        MAX(date) - INTERVAL '60 days' as prev_30_start\n    FROM ads_base\n),\nmetrics AS (\n    SELECT\n        -- Últimos 30 días\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.spend ELSE 0 END)::numeric as spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric as conv_30,\n        \n        -- Previos 30 días\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.spend ELSE 0 END)::numeric as spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.conversions ELSE 0 END)::numeric as conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start\n)\nSELECT \n    'Spend' as metric,\n    ROUND(spend_30, 2) as last_30_days,\n    ROUND(spend_60, 2) as prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) as pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;",
+        "query": "WITH date_ranges AS (\n    SELECT \n        MAX(date) as max_date,\n        MAX(date) - INTERVAL '30 days' as last_30_start,\n        MAX(date) - INTERVAL '60 days' as prev_30_start\n    FROM ads_base\n),\nmetrics AS (\n    SELECT\n        --Last 30 days\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.spend ELSE 0 END)::numeric as spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric as conv_30,\n        \n        -- Previos 30 días\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.spend ELSE 0 END)::numeric as spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start \n                THEN ab.conversions ELSE 0 END)::numeric as conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start\n)\nSELECT \n    'Spend' as metric,\n    ROUND(spend_30, 2) as last_30_days,\n    ROUND(spend_60, 2) as prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) as pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -262,7 +262,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH date_ranges AS (\n    SELECT \n        CAST('{{ $json.query.end }}' AS date) AS max_date,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '30 days' AS last_30_start,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '60 days' AS prev_30_start,\n        CAST('{{ $json.query.start }}' AS date) AS min_date\n),\nmetrics AS (\n    SELECT\n        -- Últimos 30 días\n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.spend ELSE 0 END)::numeric AS spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.conversions ELSE 0 END)::numeric AS conv_30,\n        \n        -- Previos 30 días\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.spend ELSE 0 END)::numeric AS spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric AS conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start AND ab.date <= dr.max_date\n)\nSELECT \n    'Spend' AS metric,\n    ROUND(spend_30, 2) AS last_30_days,\n    ROUND(spend_60, 2) AS prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) AS pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;\n",
+        "query": "WITH date_ranges AS (\n    SELECT \n        CAST('{{ $json.query.end }}' AS date) AS max_date,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '30 days' AS last_30_start,\n        CAST('{{ $json.query.end }}' AS date) - INTERVAL '60 days' AS prev_30_start,\n        CAST('{{ $json.query.start }}' AS date) AS min_date\n),\nmetrics AS (\n    SELECT\n       \n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.spend ELSE 0 END)::numeric AS spend_30,\n        SUM(CASE WHEN ab.date >= dr.last_30_start AND ab.date <= dr.max_date THEN ab.conversions ELSE 0 END)::numeric AS conv_30,\n        \n        \n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.spend ELSE 0 END)::numeric AS spend_60,\n        SUM(CASE WHEN ab.date >= dr.prev_30_start AND ab.date < dr.last_30_start THEN ab.conversions ELSE 0 END)::numeric AS conv_60\n    FROM ads_base ab\n    CROSS JOIN date_ranges dr\n    WHERE ab.date >= dr.prev_30_start AND ab.date <= dr.max_date\n)\nSELECT \n    'Spend' AS metric,\n    ROUND(spend_30, 2) AS last_30_days,\n    ROUND(spend_60, 2) AS prev_30_days,\n    ROUND(((spend_30 - spend_60) / NULLIF(spend_60, 0)) * 100, 2) AS pct_change\nFROM metrics\nUNION ALL\nSELECT \n    'Conversions',\n    conv_30,\n    conv_60,\n    ROUND(((conv_30 - conv_60) / NULLIF(conv_60, 0)) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'CAC',\n    ROUND(spend_30 / NULLIF(conv_30, 0), 2),\n    ROUND(spend_60 / NULLIF(conv_60, 0), 2),\n    ROUND(((spend_30 / NULLIF(conv_30, 0)) - (spend_60 / NULLIF(conv_60, 0))) / \n          NULLIF((spend_60 / NULLIF(conv_60, 0)), 0) * 100, 2)\nFROM metrics\nUNION ALL\nSELECT \n    'ROAS',\n    ROUND((conv_30 * 100) / NULLIF(spend_30, 0), 2),\n    ROUND((conv_60 * 100) / NULLIF(spend_60, 0), 2),\n    ROUND((((conv_30 * 100) / NULLIF(spend_30, 0)) - ((conv_60 * 100) / NULLIF(spend_60, 0))) / \n          NULLIF(((conv_60 * 100) / NULLIF(spend_60, 0)), 0) * 100, 2)\nFROM metrics;\n",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -464,7 +464,42 @@
       "name": "Code2"
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Respond to Webhook": [
+      {
+        "json": {
+          "summary": "Análisis Comparativo de 30 Días",
+          "table": [
+            {
+              "metric": "Spend",
+              "last_30_days": "297128.25",
+              "prev_30_days": "270325.35",
+              "pct_change": "9.92"
+            },
+            {
+              "metric": "Conversions",
+              "last_30_days": "9934",
+              "prev_30_days": "8388",
+              "pct_change": "18.43"
+            },
+            {
+              "metric": "CAC",
+              "last_30_days": "29.91",
+              "prev_30_days": "32.23",
+              "pct_change": "-7.19"
+            },
+            {
+              "metric": "ROAS",
+              "last_30_days": "3.34",
+              "prev_30_days": "3.10",
+              "pct_change": "7.75"
+            }
+          ],
+          "timestamp": "2025-09-01T23:47:24.397Z"
+        }
+      }
+    ]
+  },
   "connections": {
     "Read CSV File": {
       "main": [
@@ -608,7 +643,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "c6f7b388-1c6a-47d0-bd96-0a45918915ed",
+  "versionId": "7afdff4f-d585-47d7-8613-c17893d03897",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "27678ddd03a59d98c5163b866e33b37f0f8bfe70af0496365f3195fa7315e605"

@@ -90,10 +90,11 @@ Included columns:
 ## ⚙️ Part 1 – Ingestion (Foundation)
 
 1. Install dependencies
-2. Load `ads_spend.csv` into PostgreSQL
-3. Configure n8n nodes to ingest and transform the data
-
----
+2. Execute the n8n workflow to ingest and transform `ads_spend.csv` into PostgreSQL
+3. When the workflow finishes, check your database
+4. Verify that the data persists by running:
+   ```sql
+   SELECT * FROM ads_base LIMIT 5;
 
 ## Part 2 – KPI Modeling (SQL)
 
